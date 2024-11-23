@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "chatboost",
+  "version": "${version}",
+  "name": "ChatBoost",
+  "description": "",
+  "authors": [
+    "Tki_sor"
+  ],
+  "contact": {
+    "homepage": ""
+  },
+  "license": "LGPL-3.0",
+  "icon": "assets/chatboost/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.tkisor.chatboost.fabric.ChatBoostFabric"
+    ],
+    "client": [
+      "com.tkisor.chatboost.fabric.client.ChatboostFabricClient"
+    ]
+  },
+  "mixins": [
+    "chatboost.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.9",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "architectury": ">=9.2.14",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "another-mod": "*"
+  }
+}
