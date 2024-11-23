@@ -30,7 +30,7 @@ import static com.tkisor.chatboost.util.StringTextUtils.toText;
 import static java.io.File.separator;
 
 public class Config {
-    public static final String CONFIG_PATH = Platform.getConfigFolder() + separator + "chatpatches.json";
+    public static final String CONFIG_PATH = Platform.getConfigFolder() + separator + "chatboost.json";
     private static final Config DEFAULTS = new Config();
 
     // categories: time, hover, counter, counter.compact, boundary, chat.hud, chat.screen, copy
