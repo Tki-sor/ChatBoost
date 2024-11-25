@@ -1,6 +1,6 @@
 ![Forge Mod](https://img.shields.io/badge/modloader-forge&neoforge-eeeeee)
 
-![GitHub code size](https://img.shields.io/github/languages/code-size/mrbuilder1961/ChatPatches)
+![GitHub code size](https://img.shields.io/github/languages/code-size/Tki-sor/ChatBoost)
 
 
 # Chat Boost
