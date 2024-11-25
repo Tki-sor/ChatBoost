@@ -1,11 +1,23 @@
 package com.tkisor.chatboost.util;
 
 import com.mojang.authlib.GameProfile;
+import com.tkisor.chatboost.accessor.ChatHudAccessor;
+import com.tkisor.chatboost.mixin.gui.ChatHudMixin;
+import net.minecraft.client.GuiMessage;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.client.gui.components.ComponentRenderUtils;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.util.Mth;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
+
+import static com.tkisor.chatboost.ChatBoost.config;
 
 
 /**
@@ -50,56 +62,54 @@ public class ChatUtils {
 	 *     <li>Return the incoming message, regardless of if it was modified or not.</li>
 	 * </ol>
 	 */
-//	public static Component getCondensedMessage(Component incoming, int index) {
-//		final Minecraft client = Minecraft.getInstance();
-//		final ChatComponent chatHud = client.gui.getChat();
-//		final ChatHudAccessor chat = ChatHudAccessor.from(chatHud);
-//		final List<GuiMessage> messages = chat.chatPatches$getMessages();
-//		final List<GuiMessage.Line> visibleMessages = chat.chatPatches$getVisibleMessages();
-//
-//		messages.get(0).content().getVisualOrderText()
-//
-//		GuiMessage comparingLine = messages.get(index); // message being compared
-//		List<Component> comparingParts = comparingLine.content().getSiblings();
-//		List<Component> incomingParts = incoming.getSiblings();
-//
-//
-//		// IF the last and incoming message bodies are equal, continue
-//		if( incomingParts.get(OG_MSG_INDEX).getString().equalsIgnoreCase(comparingParts.get(OG_MSG_INDEX).getString()) ) {
-//
-//			// warning: according to some limited testing, incoming messages (incomingParts) will never contain a dupe counter, so it's been omitted from this check
-//			int dupes = (
-//				(comparingParts.size() > DUPE_COUNTER_INDEX)
-//					? Integer.parseInt(StringTextUtils.delAll(comparingParts.get(DUPE_COUNTER_INDEX).getString(), "(§[0-9a-fk-or])+", "\\D"))
-//					: 1
-//			) + 1;
-//
-//
-//			// i think when old messages are re-added into the chat, it keeps the dupe counter so we have to use set() instead of add() sometimes
-//			if(incomingParts.size() > DUPE_COUNTER_INDEX)
-//				incomingParts.set(DUPE_COUNTER_INDEX, config.makeDupeCounter(dupes));
-//			else
-//				incomingParts.add(DUPE_COUNTER_INDEX, config.makeDupeCounter(dupes));
-//
-//			messages.remove(index);
-//
-//			List<String> calcVisibles = ChatMessages.breakRenderedChatMessageLines(comparingLine.content(), MathHelper.floor(chatHud.getWidth() / chatHud.getChatScale()), client.textRenderer)
-//				.stream()
-//				.map( visible -> StringTextUtils.reorder(visible, false) )
-//				.toList();
-//			if (config.counterCompact) {
-//				visibleMessages.removeIf(hudLine -> calcVisibles.stream().anyMatch(ot -> ot.equalsIgnoreCase( StringTextUtils.reorder(hudLine.content(), false) )));
-//			} else {
-//				visibleMessages.remove(0);
-//				while(!visibleMessages.isEmpty() && !visibleMessages.get(0).endOfEntry()) visibleMessages.remove(0);
-//			}
-//
-//			// same as {@code incoming} but with the appropriate transformations
-//			return incomingParts.stream().map(Text::copy).reduce(MutableText.of( incoming.getContent() ), MutableText::append).setStyle( incoming.getStyle() );
-//		}
-//
-//		return incoming;
-//	}
+	public static Component getCondensedMessage(Component incoming, int index) {
+		final Minecraft client = Minecraft.getInstance();
+		final ChatComponent chatHud = client.gui.getChat();
+		final ChatHudAccessor chat = ChatHudAccessor.from(chatHud);
+		final List<GuiMessage> messages = chat.chatPatches$getMessages();
+		final List<GuiMessage.Line> visibleMessages = chat.chatPatches$getVisibleMessages();
+
+		GuiMessage comparingLine = messages.get(index); // message being compared
+		List<Component> comparingParts = comparingLine.content().getSiblings();
+		List<Component> incomingParts = incoming.getSiblings();
+
+
+		// IF the last and incoming message bodies are equal, continue
+		if( incomingParts.get(OG_MSG_INDEX).getString().equalsIgnoreCase(comparingParts.get(OG_MSG_INDEX).getString()) ) {
+
+			// warning: according to some limited testing, incoming messages (incomingParts) will never contain a dupe counter, so it's been omitted from this check
+			int dupes = (
+				(comparingParts.size() > DUPE_COUNTER_INDEX)
+					? Integer.parseInt(StringTextUtils.delAll(comparingParts.get(DUPE_COUNTER_INDEX).getString(), "(§[0-9a-fk-or])+", "\\D"))
+					: 1
+			) + 1;
+
+
+			// i think when old messages are re-added into the chat, it keeps the dupe counter so we have to use set() instead of add() sometimes
+			if(incomingParts.size() > DUPE_COUNTER_INDEX)
+				incomingParts.set(DUPE_COUNTER_INDEX, config.makeDupeCounter(dupes));
+			else
+				incomingParts.add(DUPE_COUNTER_INDEX, config.makeDupeCounter(dupes));
+
+			messages.remove(index);
+
+			List<String> calcVisibles = ComponentRenderUtils.wrapComponents(comparingLine.content(), Mth.floor(chatHud.getWidth() / chatHud.getScale()), client.font)
+				.stream()
+				.map( visible -> StringTextUtils.reorder(visible, false) )
+				.toList();
+			if (config.counterCompact) {
+				visibleMessages.removeIf(hudLine -> calcVisibles.stream().anyMatch(ot -> ot.equalsIgnoreCase( StringTextUtils.reorder(hudLine.content(), false) )));
+			} else {
+				visibleMessages.remove(0);
+				while(!visibleMessages.isEmpty() && !visibleMessages.get(0).endOfEntry()) visibleMessages.remove(0);
+			}
+
+			// same as {@code incoming} but with the appropriate transformations
+			return incomingParts.stream().map(Component::copy).reduce(MutableComponent.create( incoming.getContents() ), MutableComponent::append).setStyle( incoming.getStyle() );
+		}
+
+		return incoming;
+	}
 
 
 	/** Represents the metadata of a chat message. */

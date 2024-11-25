@@ -1,13 +1,11 @@
 package com.tkisor.chatboost.data;
 
 
-import com.mojang.authlib.minecraft.client.MinecraftClient;
 import com.tkisor.chatboost.ChatBoost;
 import com.tkisor.chatboost.util.Flags;
 import dev.architectury.platform.Platform;
 import net.minecraft.client.GuiMessageTag;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.chat.ChatLog;
 import net.minecraft.network.chat.Component;
 
 import java.nio.file.Path;
@@ -69,7 +67,7 @@ public class ChatData {
     public void insert(String message, String timestamp) {
         try {
             if (connection == null || connection.isClosed()) {
-                initialize();  // 如果连接为 null 或已关闭，重新初始化
+                initialize();
             }
         } catch (SQLException ignored) {
 
@@ -82,7 +80,6 @@ public class ChatData {
             insert(type, name, message, timestamp);
         } catch (SQLException e) {
             ChatBoost.Logger.error("ChatBoost SQL Error:", e);
-//            throw new RuntimeException(e);
         }
     }
 
@@ -93,7 +90,7 @@ public class ChatData {
             pstmt.setString(1, type);
             pstmt.setString(2, name);
             pstmt.setString(3, message);
-            pstmt.setString(4, timestamp); // 确保 timestamp 格式正确，如 '2024-11-01 10:00:00'
+            pstmt.setString(4, timestamp);
 
             pstmt.executeUpdate();
         }
@@ -112,10 +109,9 @@ public class ChatData {
     }
 
     public List<Component> query(String type, String name) {
-        // 确保连接有效
         try {
             if (connection == null || connection.isClosed()) {
-                initialize();  // 如果连接无效，重新初始化
+                initialize();
             }
             String sql = "SELECT id, type, name, message, timestamp FROM ChatLogs WHERE type = ? AND name = ?";
             List<Component> results = new ArrayList<>();
@@ -139,10 +135,9 @@ public class ChatData {
 
     // 查询聊天记录
     public List<Component> query(String type, String name, String startTime, String endTime) throws SQLException {
-        // 确保连接有效
         try {
             if (connection == null || connection.isClosed()) {
-                initialize();  // 如果连接无效，重新初始化
+                initialize();
             }
         } catch (SQLException ignored) {
 
@@ -177,7 +172,7 @@ public class ChatData {
     public void close() {
         if (connection != null) {
             try {
-                connection.close(); // 关闭数据库连接
+                connection.close();
                 instance = null;
             } catch (SQLException e) {
                 ChatBoost.Logger.error(e.getMessage());
