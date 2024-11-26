@@ -6,19 +6,25 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.tkisor.chatboost.ChatBoost;
 import com.tkisor.chatboost.accessor.ChatHudAccessor;
 import com.tkisor.chatboost.config.Config;
 import com.tkisor.chatboost.data.ChatData;
 import com.tkisor.chatboost.util.ChatUtils;
 import com.tkisor.chatboost.util.Flags;
+import net.minecraft.Optionull;
 import net.minecraft.Util;
 import net.minecraft.client.GuiMessage;
 import net.minecraft.client.GuiMessageTag;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.client.gui.components.ComponentRenderUtils;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.network.chat.*;
 import net.minecraft.network.chat.contents.LiteralContents;
 import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
@@ -32,9 +38,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.tkisor.chatboost.ChatBoost.Logger;
 import static com.tkisor.chatboost.ChatBoost.config;
@@ -80,6 +89,18 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
     @Shadow
     protected abstract void addMessage(Component component, @Nullable MessageSignature messageSignature, int i, @Nullable GuiMessageTag guiMessageTag, boolean bl);
 
+    @Shadow
+    protected abstract void addMessage(Component component, @Nullable MessageSignature messageSignature, @Nullable GuiMessageTag guiMessageTag);
+
+    @Shadow public abstract void deleteMessage(MessageSignature arg);
+
+    @Shadow public abstract void scrollChat(int i);
+
+    @Shadow public abstract int getWidth();
+
+    @Shadow private boolean newMessageSinceScroll;
+
+    @Shadow public abstract void addMessage(Component arg);
 
     public List<GuiMessage> chatPatches$getMessages() {
         return allMessages;
@@ -119,21 +140,15 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
     /**
      * Prevents the game from actually clearing chat history
      */
-    @Inject(method = "clearMessages", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "clearMessages", at = @At("HEAD"))
     private void clear(boolean clearHistory, CallbackInfo ci) {
-        if (!config.vanillaClearing) {
-            // Clear message using F3+D
-            if (!clearHistory) {
-                minecraft.getChatListener().clearQueue();
-                messageDeletionQueue.clear();
-                allMessages.clear();
-                trimmedMessages.clear();
-                // empties the message cache (which on save clears chatlog.json)
-//                ChatLog.clearMessages();
-//                ChatLog.clearHistory();
-            }
-
-            ci.cancel();
+        // Clear message using F3+D
+        if (!clearHistory) {
+            minecraft.getChatListener().clearQueue();
+            messageDeletionQueue.clear();
+            allMessages.clear();
+            trimmedMessages.clear();
+            ChatData.getInstance().delete(ChatBoost.gameType, ChatBoost.gameName);
         }
     }
 
@@ -259,16 +274,110 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
 
         ChatData.getInstance().insert(json.toJson(modified, Component.class), dateTime.format(formatter));
 
-        Logger.info(json.toJson(modified, Component.class));
         return modified;
     }
 
-    @Inject(method = "addRecentChat", at = @At(value = "INVOKE", target = "Ljava/util/List;add(Ljava/lang/Object;)Z"))
-    private void addHistory(String message, CallbackInfo ci) {
-        if( !Flags.LOADING_CHATLOG.isRaised() ) {
-//            ChatLog.addHistory(message);
+    private int t = 0;
+    @Inject(at = @At("RETURN"), method = "render")
+    private void re(GuiGraphics guiGraphics, int i, int j, int k, CallbackInfo ci) {
+        if (isChatFocused()) {
+            if (allMessages.size() >= 100) {
+                GuiMessage guiMessage = getCurrentPageMessages().get(10);
+                int index = allMessages.indexOf(guiMessage);
+
+                // new
+                if (index <= 25) {
+                    List<ChatData.MessageSql> forward = ChatData.getInstance().findMessagesAround(ChatBoost.json.toJson(allMessages.get(0).content(), Component.class), "forward", 10);
+
+                    for (ChatData.MessageSql messageSql : forward) {
+                        Flags.ADDING_CONDENSED_MESSAGE.raise();
+                        addMessage(messageSql.message(), null, new GuiMessageTag(0x382fb5, null, null, "Restored"));
+                        Flags.ADDING_CONDENSED_MESSAGE.lower();
+
+                        this.newMessageSinceScroll = true;
+                        this.scrollChat(1);
+                    }
+
+                }
+
+                // old
+                if (index >= 75) {
+                    List<ChatData.MessageSql> backward = ChatData.getInstance().findMessagesAround(ChatBoost.json.toJson(allMessages.get(99).content(), Component.class), "backward", 10);
+                    for (ChatData.MessageSql messageSql : backward) {
+                        minecraft.getChatListener().removeFromDelayedMessageQueue(allMessages.get(0).signature());
+                        messageDeletionQueue.remove(allMessages.get(0).signature());
+                        allMessages.remove(allMessages.get(0));
+                        trimmedMessages.remove(trimmedMessages.get(0));
+
+                        addOldMessage(messageSql.message(), null, new GuiMessageTag(0x382fb5, null, null, "Restored"));
+                        this.newMessageSinceScroll = true;
+                        this.scrollChat(-1);
+                    }
+
+                }
+
+            }
+
+
+        }
+    }
+
+    public void addOldMessage(Component component) {
+        this.addOldMessage(component, (MessageSignature)null, this.minecraft.isSingleplayer() ? GuiMessageTag.systemSinglePlayer() : GuiMessageTag.system());
+    }
+
+    public void addOldMessage(Component component, @Nullable MessageSignature messageSignature, @Nullable GuiMessageTag guiMessageTag) {
+        int time = this.minecraft.gui.getGuiTicks();
+
+        this.addOldMessage(component, messageSignature, time, guiMessageTag, false);
+    }
+
+    private void addOldMessage(Component component, @Nullable MessageSignature messageSignature, int i, @Nullable GuiMessageTag guiMessageTag, boolean bl) {
+        int j = Mth.floor((double)this.getWidth() / this.getScale());
+        if (guiMessageTag != null && guiMessageTag.icon() != null) {
+            j -= guiMessageTag.icon().width + 4 + 2;
         }
 
+        List<FormattedCharSequence> list = ComponentRenderUtils.wrapComponents(component, j, this.minecraft.font);
+        boolean bl2 = this.isChatFocused();
+
+        for (int k = 0; k < list.size(); ++k) {
+            FormattedCharSequence formattedCharSequence = list.get(k);
+            if (bl2 && this.chatScrollbarPos > 0) {
+                this.newMessageSinceScroll = true;
+                this.scrollChat(-1);
+            }
+
+            boolean bl3 = k == list.size() - 1;
+            this.trimmedMessages.add(new GuiMessage.Line(i, formattedCharSequence, guiMessageTag, bl3));  // 将消息行添加到尾部
+        }
+
+        while (this.trimmedMessages.size() > 100) {
+            this.trimmedMessages.remove(0);
+        }
+
+        if (!bl) {
+            this.allMessages.add(new GuiMessage(i, component, messageSignature, guiMessageTag));  // 将整个消息添加到尾部
+
+            while (this.allMessages.size() > 100) {
+                this.allMessages.remove(0);
+            }
+        }
+    }
+
+    private boolean isChatFocused() {
+        return this.minecraft.screen instanceof ChatScreen;
+    }
+
+
+    public List<GuiMessage> getCurrentPageMessages() {
+        int linesPerPage = this.getLinesPerPage();
+        int totalMessages = this.trimmedMessages.size();
+
+        int startIndex = this.chatScrollbarPos;
+        int endIndex = Math.min(startIndex + linesPerPage, totalMessages);
+
+        return this.allMessages.subList(startIndex, endIndex);
     }
 
     @Inject(method = "logChatMessage", at = @At("HEAD"), cancellable = true)

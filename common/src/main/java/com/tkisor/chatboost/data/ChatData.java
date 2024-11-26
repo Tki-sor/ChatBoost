@@ -1,6 +1,5 @@
 package com.tkisor.chatboost.data;
 
-
 import com.tkisor.chatboost.ChatBoost;
 import com.tkisor.chatboost.util.Flags;
 import dev.architectury.platform.Platform;
@@ -10,8 +9,11 @@ import net.minecraft.network.chat.Component;
 
 import java.nio.file.Path;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.Date;
 
 public class ChatData {
     private static volatile ChatData instance;
@@ -20,6 +22,12 @@ public class ChatData {
 
     private ChatData(Path dbPath) {
         this.dbPath = dbPath;
+    }
+
+    public static String formatTime() {
+        LocalDateTime dateTime = LocalDateTime.ofInstant(new Date().toInstant(), ZoneId.systemDefault());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        return dateTime.format(formatter);
     }
 
     public static ChatData getInstance() {
@@ -78,7 +86,7 @@ public class ChatData {
 
         try {
             insert(type, name, message, timestamp);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             ChatBoost.Logger.error("ChatBoost SQL Error:", e);
         }
     }
@@ -96,25 +104,45 @@ public class ChatData {
         }
     }
 
+    public void delete(String type, String name) {
+        String query = "DELETE FROM ChatLogs WHERE type = ? AND name = ?";
+
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, type);
+            stmt.setString(2, name);
+
+            int affectedRows = stmt.executeUpdate();
+            if (affectedRows > 0) {
+                System.out.println("Successfully deleted " + affectedRows + " rows.");
+            } else {
+                System.out.println("No matching rows found to delete.");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error deleting messages by type and name", e);
+        }
+    }
+
+
     public static void restore(Minecraft client) {
         Flags.LOADING_CHATLOG.raise();
 
         String type = ChatBoost.gameType;
         String name = ChatBoost.gameName;
         getInstance().query(type, name).forEach(msg -> {
-            client.gui.getChat().addMessage(msg, null, new GuiMessageTag(0x382fb5, null, null, "Restored"));
+            client.gui.getChat().addMessage(msg.message(), null, new GuiMessageTag(0x382fb5, null, null, "Restored"));
+
         });
 
         Flags.LOADING_CHATLOG.lower();
     }
 
-    public List<Component> query(String type, String name) {
+    public List<MessageSql> query(String type, String name) {
         try {
             if (connection == null || connection.isClosed()) {
                 initialize();
             }
             String sql = "SELECT id, type, name, message, timestamp FROM ChatLogs WHERE type = ? AND name = ?";
-            List<Component> results = new ArrayList<>();
+            List<MessageSql> results = new ArrayList<>();
 
             try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
                 pstmt.setString(1, type);
@@ -123,7 +151,7 @@ public class ChatData {
                 try (ResultSet rs = pstmt.executeQuery()) {
                     while (rs.next()) {
                         Component message = ChatBoost.json.fromJson(rs.getString("message"), Component.class);
-                        results.add(message);
+                        results.add(new MessageSql(rs.getString("type"), rs.getString("name"), message, rs.getString("timestamp")));
                     }
                 }
             }
@@ -133,41 +161,56 @@ public class ChatData {
         }
     }
 
-    // 查询聊天记录
-    public List<Component> query(String type, String name, String startTime, String endTime) throws SQLException {
-        try {
-            if (connection == null || connection.isClosed()) {
-                initialize();
-            }
-        } catch (SQLException ignored) {
+    public List<MessageSql> findMessagesAround(String message, String direction, int count) {
+        List<MessageSql> result = new ArrayList<>();
+        String query;
 
+        if ("forward".equalsIgnoreCase(direction)) {
+            query = "SELECT type, name, message, timestamp FROM ChatLogs WHERE message >= ? ORDER BY timestamp ASC LIMIT ? OFFSET ?";
+        } else if ("backward".equalsIgnoreCase(direction)) {
+            query = "SELECT type, name, message, timestamp FROM ChatLogs WHERE message <= ? ORDER BY timestamp DESC LIMIT ? OFFSET ?";
+        } else {
+            throw new IllegalArgumentException("Direction must be 'forward' or 'backward'");
         }
 
-        String sql = "SELECT id, type, name, message, timestamp FROM ChatLogs WHERE type = ? AND name = ? AND timestamp BETWEEN ? AND ?";
-        List<Component> results = new ArrayList<>();
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, message);
+            stmt.setInt(2, count + 1);
+            stmt.setInt(3, 0);
 
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, type);
-            pstmt.setString(2, name);
-            pstmt.setString(3, startTime);  // 格式如 '2024-11-01 10:00:00'
-            pstmt.setString(4, endTime);    // 格式如 '2024-11-01 12:00:00'
-
-            try (ResultSet rs = pstmt.executeQuery()) {
+            try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-//                    ChatLog log = new ChatLog(
-//                            rs.getInt("id"),
-//                            rs.getString("type"),
-//                            rs.getString("name"),
-//                            rs.getString("message"),
-//                            rs.getString("timestamp")
-//                    );
-                    Component message = ChatBoost.json.fromJson(rs.getString("message"), Component.class);
-                    results.add(message);
+                    String type = rs.getString("type");
+                    String name = rs.getString("name");
+                    String messageJson = rs.getString("message");
+                    String timestamp = rs.getString("timestamp");
+
+                    Component messageComponent = ChatBoost.json.fromJson(messageJson, Component.class);
+                    result.add(new MessageSql(type, name, messageComponent, timestamp));
                 }
             }
+
+            if (result.size() > count) {
+                if ("forward".equalsIgnoreCase(direction)) {
+                    result = result.subList(1, count + 1);
+                } else {
+                    result = result.subList(result.size() - count, result.size());
+                }
+            }
+        } catch (SQLException e) {
+            ChatBoost.Logger.error("[ChatData.findMessagesAround]Find message Error: ", e);
         }
-        return results;
+
+        if (result.size()==1) {
+            if (ChatBoost.json.toJson(result.get(0).message, Component.class).equals(message)) {
+                return new ArrayList<>();
+            }
+        }
+
+        return result;
     }
+
+    public record MessageSql(String type, String name, Component message, String time) {}
 
     public void close() {
         if (connection != null) {

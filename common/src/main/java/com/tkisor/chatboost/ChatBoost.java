@@ -14,6 +14,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.Component;
 
+import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
 public final class ChatBoost {
     public static final org.slf4j.Logger Logger = org.slf4j.LoggerFactory.getLogger("Chat Boost");
     public static final String MOD_ID = "chatboost";
@@ -44,6 +51,11 @@ public final class ChatBoost {
         ChatData.getInstance();
 
 
+//        try {
+//            Add();
+//        } catch (Exception ignored) {
+//        }
+
         if (Platform.getEnv() == EnvType.CLIENT) {
             ClientLifecycleEvent.CLIENT_STOPPING.register(instance -> {
                 ChatData.getInstance().close();
@@ -65,6 +77,34 @@ public final class ChatBoost {
         }
 
 
+    }
+
+    public static void Add() throws MalformedURLException, SQLException {
+        for (int i=0;i<=300;i++) {
+
+            insert("client", "helloworld", String.valueOf(i), ChatData.formatTime());
+        }
+
+    }
+
+    private static void insert(String type, String name, String message, String timestamp) throws SQLException, MalformedURLException {
+        String sql = "INSERT INTO ChatLogs (type, name, message, timestamp) VALUES (?, ?, ?, ?)";
+
+        Path dir =Platform.getGameFolder().resolve("chatboost.db");
+        String url = "jdbc:sqlite:" + dir.toAbsolutePath();
+
+        Connection connection = DriverManager.getConnection(url);
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, type);
+            pstmt.setString(2, name);
+            pstmt.setString(3, message);
+            pstmt.setString(4, timestamp);
+
+            pstmt.executeUpdate();
+            pstmt.close();
+            connection.close();
+        }
     }
 
 }
