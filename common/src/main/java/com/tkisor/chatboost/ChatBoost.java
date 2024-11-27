@@ -9,6 +9,7 @@ import com.tkisor.chatboost.data.ChatData;
 import dev.architectury.event.events.client.ClientLifecycleEvent;
 import dev.architectury.event.events.client.ClientPlayerEvent;
 import dev.architectury.platform.Platform;
+import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import net.fabricmc.api.EnvType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
@@ -38,23 +39,11 @@ public final class ChatBoost {
 
     public static void init() {
         // Write common init code here.
-
-
-//        ClientChatEvent.RECEIVED.register((type, message) -> {
-//
-//            System.out.println("chat1: "+type.chatType().chat());
-//            System.out.println("chat2: "+Component.Serializer.toJson(message));
-//            return CompoundEventResult.pass();
-//
-//        });
+        if (Config.isLoaderConfigMod()) {
+            Platform.getMod(MOD_ID).registerConfigurationScreen(parent -> config.getConfigScreen(parent));
+        }
 
         ChatData.getInstance();
-
-
-//        try {
-//            Add();
-//        } catch (Exception ignored) {
-//        }
 
         if (Platform.getEnv() == EnvType.CLIENT) {
             ClientLifecycleEvent.CLIENT_STOPPING.register(instance -> {
@@ -77,34 +66,6 @@ public final class ChatBoost {
         }
 
 
-    }
-
-    public static void Add() throws MalformedURLException, SQLException {
-        for (int i=0;i<=300;i++) {
-
-            insert("client", "helloworld", String.valueOf(i), ChatData.formatTime());
-        }
-
-    }
-
-    private static void insert(String type, String name, String message, String timestamp) throws SQLException, MalformedURLException {
-        String sql = "INSERT INTO ChatLogs (type, name, message, timestamp) VALUES (?, ?, ?, ?)";
-
-        Path dir =Platform.getGameFolder().resolve("chatboost.db");
-        String url = "jdbc:sqlite:" + dir.toAbsolutePath();
-
-        Connection connection = DriverManager.getConnection(url);
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, type);
-            pstmt.setString(2, name);
-            pstmt.setString(3, message);
-            pstmt.setString(4, timestamp);
-
-            pstmt.executeUpdate();
-            pstmt.close();
-            connection.close();
-        }
     }
 
 }

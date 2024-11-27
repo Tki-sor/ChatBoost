@@ -52,6 +52,9 @@ dependencies {
     implementation(include(name: "sqlite-jdbc-3.47.0.0-all"))
     compileOnly(annotationProcessor("io.github.llamalad7:mixinextras-common:0.4.1"))
     implementation(include("io.github.llamalad7:mixinextras-forge:0.4.1"))
+
+    // cloth-config
+    modApi "me.shedaniel.cloth:cloth-config-forge:${cloth_config}"
 }
 
 processResources {

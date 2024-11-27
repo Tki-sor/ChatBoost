@@ -7,6 +7,8 @@ import com.google.gson.JsonSyntaxException;
 import com.mojang.authlib.GameProfile;
 import com.tkisor.chatboost.ChatBoost;
 import dev.architectury.platform.Platform;
+import me.shedaniel.clothconfig2.api.ConfigBuilder;
+import me.shedaniel.clothconfig2.api.ConfigCategory;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.*;
 import net.minecraft.world.entity.EntityType;
@@ -17,10 +19,8 @@ import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Stream;
 
 import static com.tkisor.chatboost.ChatBoost.Logger;
 import static com.tkisor.chatboost.ChatBoost.config;
@@ -56,9 +56,16 @@ public class Config {
     }
 
     public Screen getConfigScreen(Screen parent) {
+        if (Platform.isModLoaded("cloth_config")) {
+            return ClothConfig.create(parent);
+        }
         return null;
     }
 
+    public static boolean isLoaderConfigMod() {
+        return Stream.of("cloth_config")
+                .anyMatch(Platform::isModLoaded);
+    }
 
     /** Returns all Config options as a List of string keys and class types that can be used with {@link #getOption(String)}. */
     public static List<ConfigOption<?>> getOptions() {

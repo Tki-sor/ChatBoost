@@ -22,6 +22,9 @@ dependencies {
     api "curse.maven:catalogue-fabric-667377:4766089"
 
     implementation(include(name: "sqlite-jdbc-3.47.0.0-all"))
+
+    // cloth-config
+    modApi "me.shedaniel.cloth:cloth-config-fabric:${cloth_config}"
 }
 
 configurations {
