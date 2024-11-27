@@ -118,7 +118,7 @@ public class ChatData {
                 System.out.println("No matching rows found to delete.");
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error deleting messages by type and name", e);
+            ChatBoost.Logger.error("Error deleting messages by type and name", e);
         }
     }
 
@@ -157,57 +157,94 @@ public class ChatData {
             }
             return results;
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            return new ArrayList<>();
+//            throw new RuntimeException(e);
         }
     }
 
-    public List<MessageSql> findMessagesAround(String message, String direction, int count) {
+    public List<MessageSql> findMessages(String message, String direction, int count) {
         List<MessageSql> result = new ArrayList<>();
+        String time = queryTime(message);
         String query;
 
         if ("forward".equalsIgnoreCase(direction)) {
-            query = "SELECT type, name, message, timestamp FROM ChatLogs WHERE message >= ? ORDER BY timestamp ASC LIMIT ? OFFSET ?";
+            query = "SELECT type, name, message, timestamp FROM ChatLogs WHERE type = ? AND name = ? AND timestamp >= ? ORDER BY timestamp ASC limit ? offset 1";
         } else if ("backward".equalsIgnoreCase(direction)) {
-            query = "SELECT type, name, message, timestamp FROM ChatLogs WHERE message <= ? ORDER BY timestamp DESC LIMIT ? OFFSET ?";
+            query = "SELECT type, name, message, timestamp FROM ChatLogs WHERE type = ? AND name = ? AND timestamp <= ? ORDER BY timestamp DESC limit ? offset 1";
         } else {
             throw new IllegalArgumentException("Direction must be 'forward' or 'backward'");
         }
 
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, message);
-            stmt.setInt(2, count + 1);
-            stmt.setInt(3, 0);
+            stmt.setString(1, ChatBoost.gameType);
+            stmt.setString(2, ChatBoost.gameName);
+            stmt.setString(3, time);
+            stmt.setInt(4, count);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    String type = rs.getString("type");
-                    String name = rs.getString("name");
-                    String messageJson = rs.getString("message");
+                    String messageType = rs.getString("type");
+                    String messageName = rs.getString("name");
+                    String messageContent = rs.getString("message");
                     String timestamp = rs.getString("timestamp");
 
-                    Component messageComponent = ChatBoost.json.fromJson(messageJson, Component.class);
-                    result.add(new MessageSql(type, name, messageComponent, timestamp));
-                }
-            }
-
-            if (result.size() > count) {
-                if ("forward".equalsIgnoreCase(direction)) {
-                    result = result.subList(1, count + 1);
-                } else {
-                    result = result.subList(result.size() - count, result.size());
+                    // 假设你有一个 MessageSql 类来封装查询结果
+                    result.add(new MessageSql(messageType, messageName, ChatBoost.json.fromJson(messageContent, Component.class), timestamp));
                 }
             }
         } catch (SQLException e) {
-            ChatBoost.Logger.error("[ChatData.findMessagesAround]Find message Error: ", e);
+            e.printStackTrace();
         }
 
-        if (result.size()==1) {
-            if (ChatBoost.json.toJson(result.get(0).message, Component.class).equals(message)) {
-                return new ArrayList<>();
-            }
+        if ("backward".equalsIgnoreCase(direction)) {
+//            Collections.reverse(result);
         }
 
         return result;
+    }
+
+    public String queryTime(String message) {
+        String query = "SELECT timestamp FROM ChatLogs WHERE type = ? AND name = ? AND message = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+
+            stmt.setString(1, ChatBoost.gameType);   // 设置type的值
+            stmt.setString(2, ChatBoost.gameName);   // 设置name的值
+            stmt.setString(3, message); // 设置message的值
+
+            // 执行查询
+            ResultSet rs = stmt.executeQuery();
+
+            // 输出查询结果（timestamp）
+            if (rs.next()) {
+                return rs.getString("timestamp");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return null;
+    }
+
+
+    public int messageCount() {
+        String query = "SELECT COUNT(*) FROM ChatLogs WHERE type = ? AND name = ?";
+        String type = ChatBoost.gameType, name = ChatBoost.gameName;
+
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, type);
+            stmt.setString(2, name);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                } else {
+                    return 0;
+                }
+            }
+        } catch (SQLException e) {
+            ChatBoost.Logger.error("[ChatData.messageCount]Error counting messages by type and name", e);
+        }
+
+        return 0;
     }
 
     public record MessageSql(String type, String name, Component message, String time) {}

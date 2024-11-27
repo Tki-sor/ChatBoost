@@ -89,9 +89,6 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
     @Shadow
     protected abstract void addMessage(Component component, @Nullable MessageSignature messageSignature, int i, @Nullable GuiMessageTag guiMessageTag, boolean bl);
 
-    @Shadow
-    protected abstract void addMessage(Component component, @Nullable MessageSignature messageSignature, @Nullable GuiMessageTag guiMessageTag);
-
     @Shadow public abstract void deleteMessage(MessageSignature arg);
 
     @Shadow public abstract void scrollChat(int i);
@@ -152,13 +149,13 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
         }
     }
 
-    @ModifyExpressionValue(
-            method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;ILnet/minecraft/client/GuiMessageTag;Z)V",
-            at = @At(value = "CONSTANT", args = "intValue=100")
-    )
-    private int moreMessages(int hundred) {
-        return config.chatMaxMessages;
-    }
+//    @ModifyExpressionValue(
+//            method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;ILnet/minecraft/client/GuiMessageTag;Z)V",
+//            at = @At(value = "CONSTANT", args = "intValue=100")
+//    )
+//    private int moreMessages(int hundred) {
+//        return config.chatMaxMessages;
+//    }
 
     /** allows for a chat width larger than 320px */
     @ModifyReturnValue(method = "getWidth()I", at = @At("RETURN"))
@@ -287,11 +284,11 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
 
                 // new
                 if (index <= 25) {
-                    List<ChatData.MessageSql> forward = ChatData.getInstance().findMessagesAround(ChatBoost.json.toJson(allMessages.get(0).content(), Component.class), "forward", 10);
+                    List<ChatData.MessageSql> forward = ChatData.getInstance().findMessages(ChatBoost.json.toJson(allMessages.get(0).content(), Component.class), "forward", 10);
 
                     for (ChatData.MessageSql messageSql : forward) {
                         Flags.ADDING_CONDENSED_MESSAGE.raise();
-                        addMessage(messageSql.message(), null, new GuiMessageTag(0x382fb5, null, null, "Restored"));
+                        addMessage(messageSql.message(), null, minecraft.gui.getGuiTicks(), new GuiMessageTag(0x382fb5, null, null, "Restored"), false);
                         Flags.ADDING_CONDENSED_MESSAGE.lower();
 
                         this.newMessageSinceScroll = true;
@@ -302,7 +299,7 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
 
                 // old
                 if (index >= 75) {
-                    List<ChatData.MessageSql> backward = ChatData.getInstance().findMessagesAround(ChatBoost.json.toJson(allMessages.get(99).content(), Component.class), "backward", 10);
+                    List<ChatData.MessageSql> backward = ChatData.getInstance().findMessages(ChatBoost.json.toJson(allMessages.get(allMessages.size()-1).content(), Component.class), "backward", 10);
                     for (ChatData.MessageSql messageSql : backward) {
                         minecraft.getChatListener().removeFromDelayedMessageQueue(allMessages.get(0).signature());
                         messageDeletionQueue.remove(allMessages.get(0).signature());

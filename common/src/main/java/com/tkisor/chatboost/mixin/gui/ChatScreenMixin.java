@@ -276,7 +276,7 @@ public abstract class ChatScreenMixin extends Screen {
             final double s = chatHud.getScale();
             final int lH = chat.chatPatches$getLineHeight();
             final int sW = Mth.ceil(chatHud.getWidth() / s); // scaled width
-            final int sH = Mth.floor((minecraft.getWindow().getHeight() - 40) / s); // scaled height
+            final int sH = Mth.floor((minecraft.getWindow().getGuiScaledHeight() - 40) / s); // scaled height
             int shift = Mth.floor(config.shiftChat / s);
             int i = visibles.indexOf( hoveredVisibles.get(hoveredParts - 1) ) - chat.chatPatches$getScrolledLines();
             int hoveredY = sH - (i * lH) - shift;
