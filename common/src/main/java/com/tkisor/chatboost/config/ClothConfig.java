@@ -3,13 +3,9 @@ package com.tkisor.chatboost.config;
 import com.tkisor.chatboost.ChatBoost;
 import me.shedaniel.clothconfig2.api.*;
 import me.shedaniel.clothconfig2.gui.entries.*;
-import me.shedaniel.clothconfig2.impl.builders.DropdownMenuBuilder;
-import me.shedaniel.clothconfig2.impl.builders.SubCategoryBuilder;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.jetbrains.annotations.NotNull;
 
-import java.io.Serializable;
 import java.util.List;
 
 public class ClothConfig {

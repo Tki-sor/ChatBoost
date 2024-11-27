@@ -9,18 +9,10 @@ import com.tkisor.chatboost.data.ChatData;
 import dev.architectury.event.events.client.ClientLifecycleEvent;
 import dev.architectury.event.events.client.ClientPlayerEvent;
 import dev.architectury.platform.Platform;
-import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import net.fabricmc.api.EnvType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.Component;
-
-import java.net.MalformedURLException;
-import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
 public final class ChatBoost {
     public static final org.slf4j.Logger Logger = org.slf4j.LoggerFactory.getLogger("Chat Boost");

@@ -7,8 +7,6 @@ import com.google.gson.JsonSyntaxException;
 import com.mojang.authlib.GameProfile;
 import com.tkisor.chatboost.ChatBoost;
 import dev.architectury.platform.Platform;
-import me.shedaniel.clothconfig2.api.ConfigBuilder;
-import me.shedaniel.clothconfig2.api.ConfigCategory;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.*;
 import net.minecraft.world.entity.EntityType;

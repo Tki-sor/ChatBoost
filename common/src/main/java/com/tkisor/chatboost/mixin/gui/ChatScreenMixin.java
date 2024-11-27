@@ -7,6 +7,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.tkisor.chatboost.ChatBoost;
 import com.tkisor.chatboost.accessor.ChatHudAccessor;
 import com.tkisor.chatboost.config.ChatSearchSetting;
+import com.tkisor.chatboost.data.ChatData;
 import com.tkisor.chatboost.gui.MenuButtonWidget;
 import com.tkisor.chatboost.gui.SearchButtonWidget;
 import com.tkisor.chatboost.util.ChatUtils;
@@ -47,6 +48,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.tkisor.chatboost.ChatBoost.config;
@@ -742,23 +744,63 @@ public abstract class ChatScreenMixin extends Screen {
         if(target == null)
             return createVisibles( chatHud.chatPatches$getMessages() );
 
-        List<GuiMessage> msgs = Lists.newArrayList( chatHud.chatPatches$getMessages() );
+//        List<GuiMessage> msgs = Lists.newArrayList( chatHud.chatPatches$getMessages() );
+//        msgs.removeIf(hudLn -> {
+//            String content = StringTextUtils.reorder(hudLn.content().getVisualOrderText(), modifiers.on);
+//
+//            // note that this NOTs the whole expression to simplify the complex nesting
+//            // *removes* the message if it *doesn't* match
+//            return !(
+//                    regex.on
+//                            ? content.matches( (caseSensitive.on ? "(?i)" : "") + target )
+//                            : (
+//                            caseSensitive.on
+//                                    ? content.contains(target)
+//                                    : StringUtils.containsIgnoreCase(content, target)
+//                    )
+//            );
+//        });
+        List<GuiMessage> msgs = new ArrayList<>();
+        int pageSize = 100;
+        int page = 1;
 
-        msgs.removeIf(hudLn -> {
-            String content = StringTextUtils.reorder(hudLn.content().getVisualOrderText(), modifiers.on);
+        int totalCount = ChatData.getInstance().messageCount();
+        int totalPages = (int) Math.ceil((double) totalCount / pageSize);
 
-            // note that this NOTs the whole expression to simplify the complex nesting
-            // *removes* the message if it *doesn't* match
-            return !(
-                    regex.on
-                            ? content.matches( (caseSensitive.on ? "(?i)" : "") + target )
-                            : (
-                            caseSensitive.on
-                                    ? content.contains(target)
-                                    : StringUtils.containsIgnoreCase(content, target)
-                    )
-            );
-        });
+        while (page <= totalPages) {
+            int offset = (page - 1) * pageSize;
+
+            List<ChatData.MessageSql> messages = ChatData.getInstance().query(offset, pageSize);
+
+            messages.stream()
+                    .map(t -> new GuiMessage(minecraft.gui.getGuiTicks(), t.message(), null, new GuiMessageTag(0x382fb5, null, null, "Restored")))
+                    .filter(hudLn -> {
+                        String content = StringTextUtils.reorder(hudLn.content().getVisualOrderText(), modifiers.on);
+
+                        return (
+                                regex.on
+                                        ? content.matches((caseSensitive.on ? "(?i)" : "") + target)
+                                        : (caseSensitive.on ? content.contains(target) : StringUtils.containsIgnoreCase(content, target))
+                        );
+                    })
+                    .forEach(msgs::add);
+
+            page++;
+        }
+
+//        List<GuiMessage> msgs = ChatData.getInstance().query().stream()
+//                .map(t -> new GuiMessage(minecraft.gui.getGuiTicks(), t.message(), null, new GuiMessageTag(0x382fb5, null, null, "Restored")))
+//                .filter(hudLn -> {
+//                    String content = StringTextUtils.reorder(hudLn.content().getVisualOrderText(), modifiers.on);
+//
+//                    return (
+//                            regex.on
+//                                    ? content.matches((caseSensitive.on ? "(?i)" : "") + target)
+//                                    : (caseSensitive.on ? content.contains(target) : StringUtils.containsIgnoreCase(content, target))
+//                    );
+//                })
+//                .collect(Collectors.toList());
+        Collections.reverse(msgs);
 
         return createVisibles(msgs);
     }

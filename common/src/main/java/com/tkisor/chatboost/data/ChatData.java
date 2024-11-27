@@ -136,6 +136,44 @@ public class ChatData {
         Flags.LOADING_CHATLOG.lower();
     }
 
+    public List<MessageSql> query(int offset, int limit) {
+        String type = ChatBoost.gameType;
+        String name = ChatBoost.gameName;
+        try {
+            if (connection == null || connection.isClosed()) {
+                initialize();
+            }
+
+            String sql = "SELECT id, type, name, message, timestamp FROM ChatLogs WHERE type = ? AND name = ? LIMIT ? OFFSET ?";
+
+            List<MessageSql> results = new ArrayList<>();
+
+            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                pstmt.setString(1, type);
+                pstmt.setString(2, name);
+                pstmt.setInt(3, limit);
+                pstmt.setInt(4, offset);
+
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    while (rs.next()) {
+                        Component message = ChatBoost.json.fromJson(rs.getString("message"), Component.class);
+                        results.add(new MessageSql(rs.getString("type"), rs.getString("name"), message, rs.getString("timestamp")));
+                    }
+                }
+            }
+            return results;
+        } catch (SQLException e) {
+            return new ArrayList<>();
+        }
+    }
+
+
+    public List<MessageSql> query() {
+        String type = ChatBoost.gameType;
+        String name = ChatBoost.gameName;
+        return query(type, name);
+    }
+
     public List<MessageSql> query(String type, String name) {
         try {
             if (connection == null || connection.isClosed()) {
