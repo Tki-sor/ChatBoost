@@ -1,5 +1,5 @@
 modLoader = "javafml"
-loaderVersion = "[47,)"
+loaderVersion = "[46,)"
 #issueTrackerURL = ""
 license = "GNU LGPL 3.0"
 
@@ -16,7 +16,7 @@ description = '''
 [[dependencies.chatboost]]
 modId = "forge"
 mandatory = true
-versionRange = "[47,)"
+versionRange = "[46,)"
 ordering = "NONE"
 side = "BOTH"
 

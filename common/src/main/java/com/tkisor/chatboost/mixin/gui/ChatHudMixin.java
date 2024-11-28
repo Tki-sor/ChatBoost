@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.InstanceCreator;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
-import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.tkisor.chatboost.ChatBoost;
 import com.tkisor.chatboost.accessor.ChatHudAccessor;
@@ -12,7 +11,6 @@ import com.tkisor.chatboost.config.Config;
 import com.tkisor.chatboost.data.ChatData;
 import com.tkisor.chatboost.util.ChatUtils;
 import com.tkisor.chatboost.util.Flags;
-import net.minecraft.Optionull;
 import net.minecraft.Util;
 import net.minecraft.client.GuiMessage;
 import net.minecraft.client.GuiMessageTag;
@@ -38,12 +36,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static com.tkisor.chatboost.ChatBoost.Logger;
 import static com.tkisor.chatboost.ChatBoost.config;
@@ -184,7 +179,8 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
     @ModifyVariable(
             method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;ILnet/minecraft/client/GuiMessageTag;Z)V",
             at = @At("HEAD"),
-            argsOnly = true
+            argsOnly = true,
+            order = 1100
     )
     private Component modifyMessage(Component message, Component m, MessageSignature messageSignature, int tick, @Nullable GuiMessageTag guiMessageTag, boolean bl) {
         if (bl || Flags.LOADING_CHATLOG.isRaised() || Flags.ADDING_CONDENSED_MESSAGE.isRaised())
