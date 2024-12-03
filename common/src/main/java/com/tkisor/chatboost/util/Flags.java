@@ -7,7 +7,8 @@ public enum Flags {
 	INIT(0b1000),
 	LOADING_CHATLOG(0b0001),
 	BOUNDARY_LINE(0b0010),
-	ADDING_CONDENSED_MESSAGE(0b0100);
+	ADDING_CONDENSED_MESSAGE(0b0100),
+	CHAT_DATA_LOADED(0b10000);
 
 	Flags(int value) {
 		this.value = value;

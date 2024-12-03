@@ -1,9 +1,6 @@
 package com.tkisor.chatboost.mixin.gui;
 
-import com.google.gson.Gson;
-import com.google.gson.InstanceCreator;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonSerializer;
+import com.google.gson.*;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.tkisor.chatboost.ChatBoost;
 import com.tkisor.chatboost.accessor.ChatHudAccessor;
@@ -11,6 +8,8 @@ import com.tkisor.chatboost.config.Config;
 import com.tkisor.chatboost.data.ChatData;
 import com.tkisor.chatboost.util.ChatUtils;
 import com.tkisor.chatboost.util.Flags;
+import com.tkisor.chatboost.util.SharedVariables;
+import dev.architectury.platform.Platform;
 import net.minecraft.Util;
 import net.minecraft.client.GuiMessage;
 import net.minecraft.client.GuiMessageTag;
@@ -183,7 +182,7 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
             order = 1100
     )
     private Component modifyMessage(Component message, Component m, MessageSignature messageSignature, int tick, @Nullable GuiMessageTag guiMessageTag, boolean bl) {
-        if (bl || Flags.LOADING_CHATLOG.isRaised() || Flags.ADDING_CONDENSED_MESSAGE.isRaised())
+        if (bl || Flags.LOADING_CHATLOG.isRaised() || Flags.ADDING_CONDENSED_MESSAGE.isRaised() || Flags.CHAT_DATA_LOADED.isRaised())
             return message;
 
         final Style style = message.getStyle();
@@ -270,8 +269,8 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
         return modified;
     }
 
-    private int t = 0;
-    @Inject(at = @At("RETURN"), method = "render")
+    private static Component lastMessage = null;
+    @Inject(at = @At("HEAD"), method = "render")
     private void re(GuiGraphics guiGraphics, int i, int j, int k, CallbackInfo ci) {
         if (isChatFocused()) {
             if (allMessages.size() >= 100) {
@@ -280,12 +279,22 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
 
                 // new
                 if (index <= 25) {
-                    List<ChatData.MessageSql> forward = ChatData.getInstance().findMessages(ChatBoost.json.toJson(allMessages.get(0).content(), Component.class), "forward", 10);
+                    List<ChatData.MessageSql> forward;
+                    if (lastMessage != null) {
+                        forward = ChatData.getInstance().findMessages(ChatBoost.json.toJson(lastMessage, Component.class), "forward", 10);
+                        if (forward.isEmpty()) lastMessage = null;
+                    } else {
+                        forward = ChatData.getInstance().findMessages(ChatBoost.json.toJson(allMessages.get(0).content(), Component.class), "forward", 10);
+                    }
+                    if (forward.isEmpty()) return;
 
+                    lastMessage = forward.get(forward.size()-1).message().copy();
                     for (ChatData.MessageSql messageSql : forward) {
-                        Flags.ADDING_CONDENSED_MESSAGE.raise();
+//                        Flags.ADDING_CONDENSED_MESSAGE.raise();
+                        Flags.CHAT_DATA_LOADED.raise();
                         addMessage(messageSql.message(), null, minecraft.gui.getGuiTicks(), new GuiMessageTag(0x382fb5, null, null, "Restored"), false);
-                        Flags.ADDING_CONDENSED_MESSAGE.lower();
+//                        Flags.ADDING_CONDENSED_MESSAGE.lower();
+                        Flags.CHAT_DATA_LOADED.lower();
 
                         this.newMessageSinceScroll = true;
                         this.scrollChat(1);
@@ -386,14 +395,23 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
     )
     private void addCounter(Component incoming, MessageSignature msd, int ticks, GuiMessageTag mi, boolean refreshing, CallbackInfo ci) {
         try {
-            if( config.counter && !refreshing && !allMessages.isEmpty() && !Flags.ADDING_CONDENSED_MESSAGE.isRaised() ) {
+            if( config.counter && !refreshing && !allMessages.isEmpty() && (!Flags.ADDING_CONDENSED_MESSAGE.isRaised() ) ) {
                 // condenses the incoming message into the last message if it is the same
+                if (Platform.isModLoaded("chatimage")) {
+                    String json = ChatBoost.json.toJson(incoming, Component.class);
+                    // 检查字符串中是否包含 "action": "show_chatimage"
+                    if (json.contains("\"action\":\"show_chatimage\"")) {
+                        return;
+                    }
+                }
+
                 Component condensedLastMessage = ChatUtils.getCondensedMessage(incoming, 0);
 
                 // if the counterCompact option is true but the last message received was not condensed, look for
                 // any dupes in the last counterCompactDistance +1 messages and if any are found condense them
                 if( config.counterCompact && condensedLastMessage.equals(incoming) ) {
                     // ensures {0 <= attemptDistance <= messages.size()} is true
+
                     int attemptDistance = Mth.clamp((
                             (config.counterCompactDistance == -1)
                                     ? allMessages.size()
@@ -421,11 +439,13 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
             }
 
         } catch(IndexOutOfBoundsException e) {
-//            ChatPatches.LOGGER.error("[ChatHudMixin.addCounter] Couldn't add duplicate counter because message '{}' ({} parts) was not constructed properly.", incoming.getString(), incoming.getSiblings().size());
-//            ChatPatches.LOGGER.error("[ChatHudMixin.addCounter] This could have also been caused by an issue with the new CompactChat dupe-condensing method.");
-//            ChatPatches.LOGGER.error("[ChatHudMixin.addCounter] Either way, this was caused by a bug or mod incompatibility. Please report this on GitHub or on the Discord!", e);
+            Logger.error("[ChatHudMixin.addCounter] Couldn't add duplicate counter because message '{}' ({} parts) was not constructed properly.", incoming.getString(), incoming.getSiblings().size());
+            Logger.error("[ChatHudMixin.addCounter] This could have also been caused by an issue with the new CompactChat dupe-condensing method.");
+            Logger.error("[ChatHudMixin.addCounter] Either way, this was caused by a bug or mod incompatibility. Please report this on GitHub or on the Discord!", e);
         } catch(Exception e) {
-//            ChatPatches.LOGGER.error("[ChatHudMixin.addCounter] /!\\ Couldn't add duplicate counter because of an unexpected error. Please report this on GitHub or on the Discord! /!\\", e);
+            Logger.error("[ChatHudMixin.addCounter] /!\\ Couldn't add duplicate counter because of an unexpected error. Please report this on GitHub or on the Discord! /!\\", e);
         }
+
+
     }
 }

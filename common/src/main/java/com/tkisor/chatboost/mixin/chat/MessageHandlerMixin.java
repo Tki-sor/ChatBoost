@@ -1,6 +1,7 @@
 package com.tkisor.chatboost.mixin.chat;
 
 import com.mojang.authlib.GameProfile;
+import com.tkisor.chatboost.ChatBoost;
 import com.tkisor.chatboost.util.ChatUtils;
 import com.tkisor.chatboost.util.SharedVariables;
 import net.minecraft.Util;

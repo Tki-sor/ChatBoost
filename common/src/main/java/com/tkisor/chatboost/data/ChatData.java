@@ -234,10 +234,6 @@ public class ChatData {
             e.printStackTrace();
         }
 
-        if ("backward".equalsIgnoreCase(direction)) {
-//            Collections.reverse(result);
-        }
-
         return result;
     }
 
@@ -259,8 +255,10 @@ public class ChatData {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+
         return null;
     }
+
 
 
     public int messageCount() {

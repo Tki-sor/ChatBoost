@@ -14,5 +14,7 @@ public final class ChatBoostForge {
 
         // Run our common setup.
         ChatBoost.init();
+
     }
+
 }
