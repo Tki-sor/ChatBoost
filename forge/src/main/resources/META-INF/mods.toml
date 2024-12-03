@@ -1,6 +1,6 @@
 modLoader = "javafml"
 loaderVersion = "[46,)"
-#issueTrackerURL = ""
+issueTrackerURL = "https://github.com/Tki-sor/ChatBoost/issues"
 license = "GNU LGPL 3.0"
 
 [[mods]]
